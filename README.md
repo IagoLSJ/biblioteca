@@ -31,8 +31,24 @@
 ```bash
 $ npm install
 ```
+## Frist Boot
+
+``` bash
+$ npm run db:start
+$ npx prisma migrate dev
+```
 
 ## Running the app
+
+### Start the database
+``` bash
+$ npm run db:start
+```
+
+### Stop the database
+``` bash
+$ npm run db:stop
+```
 
 ```bash
 # development
