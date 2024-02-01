@@ -1,175 +1,124 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { BooksService } from '../books.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginationService } from 'src/shared/pagination/pagination.service';
-import { AppError } from '../../../shared/errors/app-error';
+import { AppError } from 'src/shared/errors/app-error';
+import { FilterParamsDTO } from '../dto/filter.params.dto';
 import { CreateBookDTO } from '../dto/create.dto';
 import { UpdateBookDTO } from '../dto/update.dto';
 import { ReturnBookDTO } from '../dto/return.dto';
-import { FilterParamsDTO } from '../dto/filter.params.dto';
 import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
 import { PaginationOptions } from 'src/shared/pagination/dto/pagination.options.interface';
 
 describe('BooksService', () => {
-  let service: BooksService;
+  let booksService: BooksService;
   let prismaService: PrismaService;
   let paginationService: PaginationService;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [BooksService, PrismaService, PaginationService],
-    }).compile();
-
-    service = module.get<BooksService>(BooksService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    paginationService = module.get<PaginationService>(PaginationService);
+  beforeEach(() => {
+    prismaService = new PrismaService();
+    paginationService = new PaginationService(prismaService);
+    booksService = new BooksService(prismaService, paginationService);
   });
 
   describe('findAll', () => {
-    it('should return paginated books with ReturnBookDTO', async () => {
-      const filterParamsDTO: FilterParamsDTO = {author:'', availability: '', title: ''};
-      const paginateOptions: PaginationOptions = { page: 1, perPage: 3 };
-      const paginatedResult: PaginateResponseDTO<ReturnBookDTO> = {
-        items: [
-          {
-            id: '13ac70a0-c453-4787-a232-b3635ce52ca7',
-            title: 'Auto da compadecida',
-            author: 'sndflksn',
-            availability: true,
-            createdAt: new Date('2024-01-30T19:42:10.729Z'),
-            updatedAt: new Date('2024-01-30T19:42:10.729Z'),
-          },
-          {
-            id: '13ac70a0-c453-4787-a232-b3635ce52ca7',
-            title: 'Auto da compadecida',
-            author: 'sndflksn',
-            availability: true,
-            createdAt: new Date('2024-01-30T19:42:10.729Z'),
-            updatedAt: new Date('2024-01-30T19:42:10.729Z'),
-          },
-          {
-            id: '13ac70a0-c453-4787-a232-b3635ce52ca7',
-            title: 'Auto da compadecida',
-            author: 'sndflksn',
-            availability: true,
-            createdAt: new Date('2024-01-30T19:42:10.729Z'),
-            updatedAt: new Date('2024-01-30T19:42:10.729Z'),
-          },
-        ],
-        meta: {
-          total: 38,
-          totalPages: 10,
-          page: 1,
-          perPage: 3,
-        },
-      };
+    it('should return a PaginateResponseDTO of ReturnBookDTOs', async () => {
+      
+      const filterParamsDTO: FilterParamsDTO = {author: '', availability: '', title: ''};
+      const paginateOptions: PaginationOptions = {page: 1, perPage: 10};
 
-      jest
-        .spyOn(paginationService, 'paginate')
-        .mockResolvedValueOnce(paginatedResult);
+      const expectedItems: ReturnBookDTO[] = [
+        new ReturnBookDTO('1', 'Book 1', 'Author 1', true, new Date(), new Date()),
+        new ReturnBookDTO('2', 'Book 2', 'Author 2', false, new Date(), new Date()),
+      ];
+      const expectedMeta = { total: 2, perPage: 1, page: 1 , totalPages: 1};
 
-      const result = await service.findAll(filterParamsDTO, paginateOptions);
+      jest.spyOn(paginationService, 'paginate').mockResolvedValueOnce({ items: expectedItems, meta: expectedMeta });
 
-      expect(result).toEqual(paginatedResult);
+      
+      const result = await booksService.findAll(filterParamsDTO, paginateOptions);
+
+      
+      expect(result).toEqual({ items: expectedItems, meta: expectedMeta });
+      expect(paginationService.paginate).toHaveBeenCalledWith('book', paginateOptions, filterParamsDTO);
     });
   });
 
   describe('findById', () => {
-    it('should return a book by ID', async () => {
-      const bookId: string = '13ac70a0-c453-4787-a232-b3635ce52ca7';
-      const foundBook: ReturnBookDTO = new ReturnBookDTO(
-        '13ac70a0-c453-4787-a232-b3635ce52ca7',
-        'Auto da compadecida',
-        'sndflksn',
-        true,
-        new Date('2024-01-30T19:42:10.729Z'),
-        new Date('2024-01-30T19:42:10.729Z'),
-      );
+    it('should return a ReturnBookDTO if book exists', async () => {
+      
+      const id = '1';
+      const expectedBook: ReturnBookDTO = new ReturnBookDTO('1', 'Book 1', 'Author 1', true, new Date(), new Date());
 
-      jest
-        .spyOn(prismaService.book, 'findFirst')
-        .mockResolvedValueOnce(foundBook);
+      jest.spyOn(prismaService.book, 'findFirst').mockResolvedValueOnce(expectedBook);
 
-      const result = await service.findById(bookId);
+      
+      const result = await booksService.findById(id);
 
-      expect(result).toEqual(foundBook);
+      
+      expect(result).toEqual(expectedBook);
+      expect(prismaService.book.findFirst).toHaveBeenCalledWith({ where: { id } });
     });
 
-    it('should throw an AppError if book is not found', async () => {
-      const bookId: string = '13ac70a0-c453-4787-a232-b3635ce52cb7';
+    it('should throw an AppError if book does not exist', async () => {
+      
+      const id = '1';
 
       jest.spyOn(prismaService.book, 'findFirst').mockResolvedValueOnce(null);
 
-      await expect(service.findById(bookId)).rejects.toThrow(AppError);
+       
+      await expect(booksService.findById(id)).rejects.toThrow(AppError);
+      expect(prismaService.book.findFirst).toHaveBeenCalledWith({ where: { id } });
     });
   });
 
   describe('create', () => {
-    it('should create a book and return it with ReturnBookDTO', async () => {
-      const createBookDto: CreateBookDTO = {
-        title: 'Auto da compadecida',
-        author: 'sndflksn',
-        availability: true,
-      };
-      const createdBook: ReturnBookDTO = new ReturnBookDTO(
-        '13ac70a0-c453-4787-a232-b3635ce52ca7',
-        'Auto da compadecida',
-        'sndflksn',
-        true,
-        new Date('2024-01-30T19:42:10.729Z'),
-        new Date('2024-01-30T19:42:10.729Z'),
-      );
+    it('should create a new book and return a ReturnBookDTO', async () => {
+      
+      const createBookDto: CreateBookDTO = { title: 'Book 1', author: 'Author 1', availability: true };
+      const expectedBook: ReturnBookDTO = new ReturnBookDTO('1', 'Book 1', 'Author 1', true, new Date(), new Date());
 
-      jest
-        .spyOn(prismaService.book, 'create')
-        .mockResolvedValueOnce(createdBook);
+      jest.spyOn(prismaService.book, 'create').mockResolvedValueOnce(expectedBook);
 
-      const result = await service.create(createBookDto);
+      
+      const result = await booksService.create(createBookDto);
 
-      expect(result).toEqual(createdBook);
+      
+      expect(result).toEqual(expectedBook);
+      expect(prismaService.book.create).toHaveBeenCalledWith({ data: createBookDto });
     });
   });
 
   describe('update', () => {
-    it('should update a book and return it with ReturnBookDTO', async () => {
-      const bookId: string = '13ac70a0-c453-4787-a232-b3635ce52ca7';
-      const bookById: ReturnBookDTO = new ReturnBookDTO(
-        '13ac70a0-c453-4787-a232-b3635ce52ca7',
-        'Auto da compadecida',
-        'sndflksn',
-        true,
-        new Date('2024-01-30T19:42:10.729Z'),
-        new Date('2024-01-30T19:42:10.729Z'),
-      );
+    it('should update an existing book and return a ReturnBookDTO', async () => {
+      
+      const id = '1';
+      const updateBookDTO: Partial<UpdateBookDTO> = { title: 'Updated Book 1' };
+      const expectedBook: ReturnBookDTO = new ReturnBookDTO('1', 'Updated Book 1', 'Author 1', true, new Date(), new Date());
 
-      const updateBookDto: Partial<UpdateBookDTO> = { author: 'Iago' };
-      const updatedBook: ReturnBookDTO = new ReturnBookDTO(
-        '13ac70a0-c453-4787-a232-b3635ce52ca7',
-        'Auto da compadecida',
-        'Iago',
-        true,
-        new Date('2024-01-30T19:42:10.729Z'),
-        new Date('2024-01-30T19:42:10.729Z'),
-      );
+      jest.spyOn(booksService, 'findById').mockResolvedValueOnce(expectedBook);
+      jest.spyOn(prismaService.book, 'update').mockResolvedValueOnce(expectedBook);
 
-      jest.spyOn(service, 'findById').mockResolvedValueOnce(bookById);
-      jest
-        .spyOn(prismaService.book, 'update')
-        .mockResolvedValueOnce(updatedBook);
+      
+      const result = await booksService.update(id, updateBookDTO);
 
-      const result = await service.update(bookId, updateBookDto);
-
-      expect(result).toEqual(updatedBook);
+      
+      expect(result).toEqual(expectedBook);
+      expect(booksService.findById).toHaveBeenCalledWith(id);
+      expect(prismaService.book.update).toHaveBeenCalledWith({ data: updateBookDTO, where: { id } });
     });
   });
 
   describe('delete', () => {
     it('should delete a book', async () => {
-      const bookId: string = '13ac70a0-c453-4787-a232-b3635ce52ca7';
+      const id = '1';
 
-      jest.spyOn(prismaService.book, 'delete').mockResolvedValueOnce(undefined);
+      jest.spyOn(booksService, 'findById').mockResolvedValueOnce(new ReturnBookDTO('1', 'Book 1', 'Author 1', true, new Date(), new Date()));
+      jest.spyOn(prismaService.book, 'delete').mockResolvedValueOnce(new ReturnBookDTO('1', 'Book 1', 'Author 1', true, new Date(), new Date()));
 
-      await expect(service.delete(bookId)).resolves.not.toThrow();
+      await booksService.delete(id);
+
+      expect(booksService.findById).toHaveBeenCalledWith(id);
+      expect(prismaService.book.delete).toHaveBeenCalledWith({ where: { id } });
     });
   });
 });

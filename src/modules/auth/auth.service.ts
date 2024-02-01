@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+
 import { AppError } from 'src/shared/errors/app-error';
-import { EncryptoService } from '../../shared/libs/encryptor/encryptor.service';
+import { EncryptoService } from 'src/shared/libs/encryptor/encryptor.service';
 import { PrismaService } from '../prisma/prisma.service';
+
 import { SignInDTO } from './dto/signIn.dto';
 import { SignUpDTO } from './dto/singUp.dto';
+import { ReturnUserDTO } from './dto/retunr.user.dto';
 
 
 @Injectable()
@@ -42,7 +45,7 @@ export class AuthService {
     return {token}
   }
 
-  async signUp(signUp: SignUpDTO){
+  async signUp(signUp: SignUpDTO): Promise<ReturnUserDTO>{
     const existEmail = await this.prismaService.user.findFirst({
       where:{
         email: signUp.email
@@ -60,9 +63,11 @@ export class AuthService {
         email:signUp.email,
         name: signUp.name,
         passwordHash: hashedPassword
-      }
+      },
     })
-    delete createdUser.passwordHash
-   return createdUser
+
+  delete createdUser.passwordHash
+
+   return new ReturnUserDTO(createdUser.id, createdUser.name, createdUser.email, null, createdUser.createdAt, createdUser.updatedAt)
   }
 }

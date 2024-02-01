@@ -1,183 +1,269 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { LibraryService } from '../library.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BooksService } from '../../books/books.service';
 import { PaginationService } from 'src/shared/pagination/pagination.service';
 import { ReturnLibraryDTO } from '../dto/return.dto';
 import { AppError } from 'src/shared/errors/app-error';
-import { ReturnBookDTO } from '../../books/dto/return.dto';
 
 describe('LibraryService', () => {
-  let service: LibraryService;
+  let libraryService: LibraryService;
   let prismaService: PrismaService;
-  let booksService: BooksService;
+  let bookService: BooksService;
   let paginationService: PaginationService;
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [LibraryService, PrismaService, BooksService, PaginationService],
-    }).compile();
-
-    service = module.get<LibraryService>(LibraryService);
-    prismaService = module.get<PrismaService>(PrismaService);
-    booksService = module.get<BooksService>(BooksService);
-    paginationService = module.get<PaginationService>(PaginationService);
+  beforeEach(() => {
+    prismaService = new PrismaService();
+    paginationService = new PaginationService(prismaService);
+    bookService = new BooksService(prismaService, paginationService);
+    libraryService = new LibraryService(
+      prismaService,
+      bookService,
+      paginationService,
+    );
   });
 
   describe('rent', () => {
-    it('should rent a book and create rental history', async () => {
-      const userId: string = "a166a83e-c264-45cb-8bcd-ec8cd0c61e03";
-      const bookId: string = "00ad0e53-05d5-4a78-b398-556c9c90256c";
-      const bookAvailability = true; 
-      const rentalDate = new Date().toISOString();
+    it('should rent a book and return the rental details', async () => {
+      
+      const userId = '1';
+      const bookId = '1';
+      const book = {
+        id: bookId,
+        title: 'Book Title',
+        author: 'Author book',
+        availability: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const rentalDate = new Date('2024-02-01');
+      const createdRent = {
+        id: '1',
+        usersId: '1',
+        booksId: '1',
+        rentalDate,
+        returnDate: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const expectedReturnDTO = new ReturnLibraryDTO(
+        createdRent.id,
+        null,
+        book,
+        rentalDate,
+        null,
+        new Date(),
+        new Date(),
+      );
+      
+      jest.spyOn(bookService, 'findById').mockResolvedValue(book);
+      jest.spyOn(bookService, 'update').mockResolvedValue(undefined);
+      jest
+        .spyOn(prismaService.rentalHistory, 'create')
+        .mockResolvedValue(createdRent);
 
-      jest.spyOn(booksService, 'findById').mockResolvedValueOnce(new ReturnBookDTO(
-        '13ac70a0-c453-4787-a232-b3635ce52ca7',
-        'Auto da compadecida',
-        'sndflksn',
-        true,
-        new Date('2024-01-30T19:42:10.729Z'),
-        new Date('2024-01-30T19:42:10.729Z'),
-      ));
-      jest.spyOn(booksService, 'update').mockResolvedValueOnce(/* mock your updated book */);
-      jest.spyOn(prismaService.rentalHistory, 'create').mockResolvedValueOnce({
-        id: 'rentalId',
-        booksId: bookId,
-        usersId: userId,
-        rentalDate: new Date(),
+      
+      const result = await libraryService.rent(userId, bookId);
+
+      
+      expect(result).toEqual(expectedReturnDTO);
+      expect(bookService.findById).toHaveBeenCalledWith(bookId);
+      expect(bookService.update).toHaveBeenCalledWith(bookId, {
+        availability: false,
       });
-
-      const result = await service.rent(userId, bookId);
-
-      expect(result).toBeInstanceOf(ReturnLibraryDTO);
-      expect(result.id).toEqual('rentalId');
-      expect(result.book.availability).toBeFalsy();
-      expect(result.rentalDate).toEqual(rentalDate);
+      
     });
 
-    it('should throw AppError when trying to rent an unavailable book', async () => {
-      const userId: string =  "a166a83e-c264-45cb-8bcd-ec8cd0c61e03";
-      const bookId: string = "00ad0e53-05d5-4a78-b398-556c9c90256c";
-      const bookAvailability = false;
+    it('should throw an AppError if the book is not available', async () => {
+      
+      const userId = '1';
+      const bookId = '1';
+      const book = {
+        id: bookId,
+        title: 'Book Title',
+        author: 'Author book',
+        availability: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      jest.spyOn(booksService, 'findById').mockResolvedValueOnce(new ReturnBookDTO(
-        '13ac70a0-c453-4787-a232-b3635ce52ca7',
-        'Auto da compadecida',
-        'sndflksn',
-        true,
-        new Date('2024-01-30T19:42:10.729Z'),
-        new Date('2024-01-30T19:42:10.729Z'),
-      ))
+      jest.spyOn(bookService, 'findById').mockResolvedValue(book);
 
-      await expect(service.rent(userId, bookId)).rejects.toThrow(AppError);
+       
+      await expect(libraryService.rent(userId, bookId)).rejects.toThrow(
+        AppError,
+      );
+      expect(bookService.findById).toHaveBeenCalledWith(bookId);
     });
   });
 
   describe('devolution', () => {
-    it('should return a book, update rental history, and make the book available', async () => {
-      const userId: string = "a166a83e-c264-45cb-8bcd-ec8cd0c61e03";
-      const bookId: string = "00ad0e53-05d5-4a78-b398-556c9c90256c";
-      const rentalId: string = /* mock your rentalId */;
-      const returnDate = new Date().toISOString();
+    it('should return a book and update the rental details', async () => {
+      
+      const userId = 'user1';
+      const bookId = 'book1';
+      const book = {
+        id: bookId,
+        title: 'Book Title',
+        author: 'Author book',
+        availability: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const rentalDate = new Date();
+      const history = {
+        id: '1',
+        rentalDate,
+      };
+      const updatedRent = {
+        id: '1',
+        usersId: '1',
+        booksId: '1',
+        rentalDate: new Date(),
+        returnDate: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      const expectedReturnDTO = new ReturnLibraryDTO(
+        history.id,
+        null,
+        book,
+        rentalDate,
+        updatedRent.returnDate,
+        rentalDate,
+        rentalDate,
+      );
+      const historyById = {
+        id: '1',
+        usersId: '1',
+        booksId: '1',
+        rentalDate: new Date(),
+        returnDate: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      jest.spyOn(booksService, 'findById').mockResolvedValueOnce(/* mock your book */);
-      jest.spyOn(prismaService.rentalHistory, 'findFirst').mockResolvedValueOnce({
-        id: rentalId,
-        booksId: bookId,
-        usersId: userId,
-        rentalDate: new Date().toISOString(),
+      jest.spyOn(bookService, 'findById').mockResolvedValue(book);
+      jest
+        .spyOn(prismaService.rentalHistory, 'findFirst')
+        .mockResolvedValue(historyById);
+      jest
+        .spyOn(prismaService.rentalHistory, 'update')
+        .mockResolvedValue(updatedRent);
+      jest.spyOn(bookService, 'update').mockResolvedValue(undefined);
+
+      
+      const result = await libraryService.devolution(userId, bookId);
+
+      
+      expect(result).toEqual(expectedReturnDTO);
+      expect(bookService.findById).toHaveBeenCalledWith(bookId);
+      expect(prismaService.rentalHistory.findFirst).toHaveBeenCalledWith({
+        where: {
+          usersId: userId,
+          booksId: bookId,
+        },
       });
-      jest.spyOn(booksService, 'update').mockResolvedValueOnce(/* mock your updated book */);
-      jest.spyOn(prismaService.rentalHistory, 'update').mockResolvedValueOnce({
-        id: rentalId,
-        returnDate: returnDate,
+      expect(prismaService.rentalHistory.update).toHaveBeenCalledWith({
+        where: {
+          id: history.id,
+        },
+        data: {
+          returnDate: expect.any(Date),
+        },
       });
-
-      const result = await service.devolution(userId, bookId);
-
-      expect(result).toBeInstanceOf(ReturnLibraryDTO);
-      expect(result.id).toEqual(rentalId);
-      expect(result.returnDate).toEqual(returnDate);
-      expect(result.book.availability).toBeTruthy(); // Book should be available after devolution
+      expect(bookService.update).toHaveBeenCalledWith(bookId, {
+        availability: true,
+      });
     });
 
-    it('should throw AppError when trying to devolve a book without rental history', async () => {
-      const userId: string =  "a166a83e-c264-45cb-8bcd-ec8cd0c61e03";
-      const bookId: string = "00ad0e53-05d5-4a78-b398-556c9c90256c";
+    it('should throw an AppError if the rental history is not found', async () => {
+      
+      const userId = 'user1';
+      const bookId = 'book1';
+      const book = {
+        id: bookId,
+        title: 'Book Title',
+        author: 'Author book',
+        availability: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      jest.spyOn(booksService, 'findById').mockResolvedValueOnce(/* mock your book */);
-      jest.spyOn(prismaService.rentalHistory, 'findFirst').mockResolvedValueOnce(null);
+      jest.spyOn(bookService, 'findById').mockResolvedValue(book);
+      jest
+        .spyOn(prismaService.rentalHistory, 'findFirst')
+        .mockResolvedValue(null);
 
-      await expect(service.devolution(userId, bookId)).rejects.toThrow(AppError);
+      
+      await expect(libraryService.devolution(userId, bookId)).rejects.toThrow(
+        AppError,
+      );
+      expect(bookService.findById).toHaveBeenCalledWith(bookId);
+      expect(prismaService.rentalHistory.findFirst).toHaveBeenCalledWith({
+        where: {
+          usersId: userId,
+          booksId: bookId,
+        },
+      });
     });
   });
 
   describe('findAllHistory', () => {
-    it('should return paginated rental history for a user with ReturnLibraryDTO', async () => {
-      const userId: string =  "a166a83e-c264-45cb-8bcd-ec8cd0c61e03";
-      const paginatedResult: {
-        items: ReturnLibraryDTO[];
-        meta: { total: number; totalPages: number;  page: number; perPage: number };
-      } = {
-        items: [{
-			"id": "5fa69aa2-1124-4c8e-aaae-14246b4f7e36",
-			"user": {
-				"id": "a166a83e-c264-45cb-8bcd-ec8cd0c61e03",
-				"name": "iago",
-				"email": "joseisgolima@gmail.com",
-				"token": null,
-				"createdAt": "2024-01-30T20:17:52.659Z",
-				"updatedAt": "2024-01-30T20:17:52.659Z"
-			},
-			"book": {
-				"id": "00ad0e53-05d5-4a78-b398-556c9c90256c",
-				"title": "Auto da compadecida",
-				"author": "Iago",
-				"availability": true,
-				"createdAt": "2024-01-30T19:41:33.116Z",
-				"updatedAt": "2024-01-30T21:17:16.320Z"
-			},
-			"rentalDate": "2024-01-30T20:18:51.769Z",
-			"returnDate": "2024-01-30T21:17:15.732Z",
-			"createdAt": "2024-01-30T20:18:51.770Z",
-			"updatedAt": "2024-01-30T21:17:15.733Z"
-		},
-		{
-			"id": "e0afed97-bfc2-48fd-b5f3-9eef537f92e6",
-			"user": {
-				"id": "a166a83e-c264-45cb-8bcd-ec8cd0c61e03",
-				"name": "iago",
-				"email": "joseisgolima@gmail.com",
-				"token": null,
-				"createdAt": "2024-01-30T20:17:52.659Z",
-				"updatedAt": "2024-01-30T20:17:52.659Z"
-			},
-			"book": {
-				"id": "00ad0e53-05d5-4a78-b398-556c9c90256c",
-				"title": "Auto da compadecida",
-				"author": "Iago",
-				"availability": true,
-				"createdAt": "2024-01-30T19:41:33.116Z",
-				"updatedAt": "2024-01-30T21:17:16.320Z"
-			},
-			"rentalDate": "2024-01-30T20:18:54.243Z",
-			"returnDate": null,
-			"createdAt": "2024-01-30T20:18:54.244Z",
-			"updatedAt": "2024-01-30T20:18:54.244Z"
-		}],
+    it('should return the paginated rental history with ReturnLibraryDTO', async () => {
+      
+      const userId = 'user1';
+      const rentalHistory = {
+        items: [
+          {
+            id: '1',
+            user: null,
+            book: null,
+            rentalDate: new Date('2024-02-01'),
+            returnDate: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
         meta: {
-            "total": 2,
-            "totalPages": 1,
-            "page": 1,
-            "perPage": 10
+          total: 1,
+          perPage: 10,
+          page: 1,
+          totalPages: 1,
         },
       };
+      const expectedResponse = {
+        items: [
+          new ReturnLibraryDTO(
+            rentalHistory.items[0].id,
+            rentalHistory.items[0].user,
+            rentalHistory.items[0].book,
+            rentalHistory.items[0].rentalDate,
+            rentalHistory.items[0].returnDate,
+            rentalHistory.items[0].createdAt,
+            rentalHistory.items[0].updatedAt,
+          ),
+        ],
+        meta: rentalHistory.meta,
+      };
 
-      jest.spyOn(paginationService, 'paginate').mockResolvedValueOnce(paginatedResult);
+      jest
+        .spyOn(paginationService, 'paginate')
+        .mockResolvedValue(rentalHistory);
 
-      const result = await service.findAllHistory(userId);
+      
+      const result = await libraryService.findAllHistory(userId);
 
-      expect(result).toEqual(paginatedResult);
+      
+      expect(result).toEqual(expectedResponse);
+      expect(paginationService.paginate).toHaveBeenCalledWith(
+        'rentalHistory',
+        {
+          page: 1,
+          perPage: 10,
+        },
+        { usersId: userId },
+        { user: true, book: true },
+      );
     });
   });
 });

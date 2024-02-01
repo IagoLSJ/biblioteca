@@ -28,7 +28,7 @@ export class LibraryService {
       data: {
         booksId: bookById.id,
         usersId: userId,
-        rentalDate: new Date().toISOString(),
+        rentalDate: new Date(),
       },
     });
 
@@ -60,7 +60,7 @@ export class LibraryService {
         id: historyById.id,
       },
       data: {
-        returnDate: new Date().toISOString(),
+        returnDate: new Date(),
       },
     });
 

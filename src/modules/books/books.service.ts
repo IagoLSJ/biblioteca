@@ -21,12 +21,15 @@ export class BooksService {
 
   async findAll(
     filterParamsDTO: FilterParamsDTO,
-    paginateOptions:PaginationOptions
+    paginateOptions: PaginationOptions,
   ): Promise<PaginateResponseDTO<ReturnBookDTO>> {
-    
-    const { items, meta } = await this.pagination.paginate('book', paginateOptions, filterParamsDTO);
+    const { items, meta } = await this.pagination.paginate(
+      'book',
+      paginateOptions,
+      filterParamsDTO,
+    );
     const itemsWithReturnDTO = items.map((item: ReturnBookDTO) => {
-     return new ReturnBookDTO(
+      return new ReturnBookDTO(
         item.id,
         item.title,
         item.author,
@@ -38,7 +41,7 @@ export class BooksService {
     return { items: itemsWithReturnDTO, meta };
   }
   async findById(id: string): Promise<ReturnBookDTO> {
-    const bookById: ReturnBookDTO = await this.prismaService.book.findFirst({
+    const bookById = await this.prismaService.book.findFirst({
       where: {
         id,
       },
@@ -48,15 +51,29 @@ export class BooksService {
       throw new AppError('Livro não existe');
     }
 
-    return bookById;
+    return new ReturnBookDTO(
+      bookById.id,
+      bookById.title,
+      bookById.author,
+      bookById.availability,
+      bookById.createdAt,
+      bookById.updatedAt,
+    );
   }
 
   async create(createBookDto: CreateBookDTO): Promise<ReturnBookDTO> {
-    const createdBook: ReturnBookDTO = await this.prismaService.book.create({
+    const createdBook = await this.prismaService.book.create({
       data: createBookDto,
     });
 
-    return createdBook;
+    return new ReturnBookDTO(
+      createdBook.id,
+      createdBook.title,
+      createdBook.author,
+      createdBook.availability,
+      createdBook.createdAt,
+      createdBook.updatedAt,
+    );
   }
 
   async update(
@@ -65,17 +82,25 @@ export class BooksService {
   ): Promise<ReturnBookDTO> {
     const bookById = await this.findById(id);
 
-    const updatedBook: ReturnBookDTO = await this.prismaService.book.update({
-      data: updateBookDTO,
+    const updatedBook = await this.prismaService.book.update({
       where: {
-        id,
+        id: bookById.id,
       },
+      data:updateBookDTO,
     });
 
-    return updatedBook;
+    return new ReturnBookDTO(
+      updatedBook.id,
+      updatedBook.title,
+      updatedBook.author,
+      updatedBook.availability,
+      updatedBook.createdAt,
+      updatedBook.updatedAt,
+    );
   }
 
   async delete(id: string): Promise<void> {
+    await this.findById(id);
     await this.prismaService.book.delete({
       where: {
         id,
