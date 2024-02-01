@@ -1,9 +1,11 @@
+import { AppError } from 'src/shared/errors/app-error';
+
 import { LibraryService } from '../library.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BooksService } from '../../books/books.service';
 import { PaginationService } from 'src/shared/pagination/pagination.service';
+
 import { ReturnLibraryDTO } from '../dto/return.dto';
-import { AppError } from 'src/shared/errors/app-error';
 
 describe('LibraryService', () => {
   let libraryService: LibraryService;

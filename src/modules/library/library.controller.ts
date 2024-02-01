@@ -1,10 +1,13 @@
 import {  Controller, Get, Param, Post, Put, Request, UseGuards } from '@nestjs/common';
 import { Request as IRequest } from 'express';
-import { LibraryService } from './library.service';
-import { AuthGuard } from '../auth/auth.guard';
-import { ReturnLibraryDTO } from './dto/return.dto';
+
 import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
 
+import { AuthGuard } from '../auth/auth.guard';
+
+import { LibraryService } from './library.service';
+
+import { ReturnLibraryDTO } from './dto/return.dto';
 
 @Controller('library')
 export class LibraryController {

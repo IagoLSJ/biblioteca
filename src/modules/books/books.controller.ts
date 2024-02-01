@@ -11,15 +11,16 @@ import {
   Query,
 } from '@nestjs/common';
 
-import { BooksService } from './books.service';
+import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
+import { PaginationOptions } from 'src/shared/pagination/dto/pagination.options.interface';
+
 
 import { CreateBookDTO } from './dto/create.dto';
 import { UpdateBookDTO } from './dto/update.dto';
 import { ReturnBookDTO } from './dto/return.dto';
 import { FilterParamsDTO } from './dto/filter.params.dto';
-import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
-import { PaginationOptions } from 'src/shared/pagination/dto/pagination.options.interface';
 
+import { BooksService } from './books.service';
 
 @Controller('books')
 export class BooksController {

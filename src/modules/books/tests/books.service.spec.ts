@@ -1,13 +1,14 @@
-import { BooksService } from '../books.service';
-import { PrismaService } from '../../prisma/prisma.service';
+import { PaginationOptions } from 'src/shared/pagination/dto/pagination.options.interface';
 import { PaginationService } from 'src/shared/pagination/pagination.service';
 import { AppError } from 'src/shared/errors/app-error';
+
 import { FilterParamsDTO } from '../dto/filter.params.dto';
 import { CreateBookDTO } from '../dto/create.dto';
 import { UpdateBookDTO } from '../dto/update.dto';
 import { ReturnBookDTO } from '../dto/return.dto';
-import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
-import { PaginationOptions } from 'src/shared/pagination/dto/pagination.options.interface';
+
+import { PrismaService } from '../../prisma/prisma.service';
+import { BooksService } from '../books.service';
 
 describe('BooksService', () => {
   let booksService: BooksService;

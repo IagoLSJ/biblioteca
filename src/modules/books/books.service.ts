@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AppError } from '../../shared/errors/app-error';
+import { PaginationOptions } from 'src/shared/pagination/dto/pagination.options.interface';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { PaginationService } from 'src/shared/pagination/pagination.service';
@@ -10,7 +11,6 @@ import { UpdateBookDTO } from './dto/update.dto';
 import { ReturnBookDTO } from './dto/return.dto';
 import { FilterParamsDTO } from './dto/filter.params.dto';
 import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
-import { PaginationOptions } from 'src/shared/pagination/dto/pagination.options.interface';
 
 @Injectable()
 export class BooksService {

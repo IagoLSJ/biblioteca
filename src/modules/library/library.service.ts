@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
+
+import { AppError } from 'src/shared/errors/app-error';
+import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
+import { PaginationService } from 'src/shared/pagination/pagination.service';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { BooksService } from '../books/books.service';
 
-import { PaginationService } from 'src/shared/pagination/pagination.service';
-import { PaginateResponseDTO } from 'src/shared/pagination/dto/paginate.response.dto';
 import { ReturnLibraryDTO } from './dto/return.dto';
-import { AppError } from 'src/shared/errors/app-error';
+
 @Injectable()
 export class LibraryService {
   constructor(
